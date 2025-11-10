@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 /****Controller** */
+use App\Http\Controllers\VisitorManagement\VisitorController;
+
 use App\Http\Controllers\AdminSetting\UserController;
 use App\Http\Controllers\AdminSetting\RoleController;
 use App\Http\Controllers\AdminSetting\LogController;
@@ -72,9 +74,35 @@ Route::prefix('common-fields')->name('common.')->group(function () {
     Route::resource('condemnations', CondemnationController::class)->except(['create', 'show', 'edit']);
 });
 
+/** Visitor management **/
 
+Route::middleware(['auth'])
+    ->prefix('visitor-management')
+    ->name('visitor.')
+    ->group(function () {
 
+        // ✅ Visitors Listing Page
+        Route::get('/visitors', [VisitorController::class, 'index'])->name('index');
 
+        // ✅ Invite Visitor Form Page
+        Route::get('/visitors/form', [VisitorController::class, 'create'])->name('form');
+
+        // ✅ Invite and Re-invite Actions
+        Route::post('/visitors/invite', [VisitorController::class, 'invite'])->name('invite');
+        Route::post('/visitors/{id}/reinvite', [VisitorController::class, 'reinvite'])->name('reinvite');
+
+        // ✅ Search (for smart autofill)
+        Route::post('/visitors/search', [VisitorController::class, 'search'])->name('search');
+
+        // ✅ Edit/Update/Delete (Admin use)
+        Route::get('/visitors/{id}/edit', [VisitorController::class, 'edit'])->name('edit');
+        Route::put('/visitors/{id}', [VisitorController::class, 'update'])->name('update');
+        Route::delete('/visitors/{id}', [VisitorController::class, 'destroy'])->name('destroy');
+
+        // ✅ Check-in / Check-out
+        Route::post('/visitors/{id}/check-in', [VisitorController::class, 'checkIn'])->name('checkin');
+        Route::post('/visitors/{id}/check-out', [VisitorController::class, 'checkOut'])->name('checkout');
+    });
 
 
 
