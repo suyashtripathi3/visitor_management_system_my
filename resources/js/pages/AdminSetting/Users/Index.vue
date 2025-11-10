@@ -1,200 +1,156 @@
 <template>
+<div>
 
-    <!-- ✅ Page Title -->
+    <!-- ✅ Title -->
     <div class="page-title">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li><h1>Users</h1></li>
-                <li class="breadcrumb-item">
-                    <a :href="route('dashboard')">Home</a>
-                </li>
+                <li class="breadcrumb-item"><a :href="AppRoutes.dashboard">Home</a></li>
                 <li class="breadcrumb-item active">Users</li>
             </ol>
         </nav>
     </div>
 
-    <div class="container-fluid">
+    <div class="card">
 
-        <div class="row">
+        <!-- ✅ Filters -->
+        <div class="card-header d-flex gap-2">
 
-            <!-- ✅ User Count Cards -->
-            <div class="col-xl-12">
-                        <div class="card">
-                            <div class="card-body overflow-hidden">
-                                <div class="row gx-5 gy-3">
+            <input v-model="search" @input="applyFilter" class="form-control form-control-sm"
+                placeholder="Search name or email..." style="width:200px">
 
-                                    <!-- Start - Not Started -->
-                                    <div class="col-xl-2 col-sm-4 col-6 border-end">
-                                        <div class="d-flex align-items-center">
-                                            <h2 class="text-primary my-0 fs-3 me-2">{{ totalUsers }}</h2>
-                                            <span class="text-dark fw-medium fs-5">Total Users</span>
-                                        </div>
-                                        <span>Tasks assigne</span>
-                                    </div>
-                                    <!-- End - Not Started -->
+            <select v-model="filterDepartment" @change="applyFilter" class="form-select form-select-sm" style="width:150px">
+                <option value="">All Departments</option>
+                <option v-for="d in props.departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+            </select>
 
-                                    <!-- Start - In Progress -->
-                                    <div class="col-xl-2 col-sm-4 col-6 border-end">
-                                        <div class="d-flex align-items-center ">
-                                            <h2 class="text-purple my-0 fs-3 me-2">7</h2>
-                                            <span class="text-dark fw-medium fs-5">In Progress</span>
-                                        </div>
-                                        <span>Tasks assigne</span>
-                                    </div>
-                                    <!-- End - In Progress -->
+            <select v-model="filterRole" @change="applyFilter" class="form-select form-select-sm" style="width:140px">
+                <option value="">All Roles</option>
+                <option v-for="r in props.allRoles" :key="r" :value="r">{{ r }}</option>
+            </select>
 
-                                    <!-- Start - Testing -->
-                                    <div class="col-xl-2 col-sm-4 col-6 border-end">
-                                        <div class="d-flex align-items-center">
-                                            <h2 class="text-warning my-0 fs-3 me-2">13</h2>
-                                            <span class="text-dark fw-medium fs-5">Testing</span>
-                                        </div>
-                                        <span>Tasks assigne</span>
-                                    </div>
-                                    <!-- End - Testing -->
+            <button class="btn btn-primary btn-sm ms-auto" @click="createUser">+ Add User</button>
+        </div>
 
-                                    <!-- Start - Awaiting -->
-                                    <div class="col-xl-2 col-sm-4 col-6 border-end">
-                                        <div class="d-flex align-items-center">
-                                            <h2 class="text-danger my-0 fs-3 me-2">11</h2>
-                                            <span class="text-dark fw-medium fs-5">Awaiting</span>
-                                        </div>
-                                        <span>Tasks assigne</span>
-                                    </div>
-                                    <!-- End - Awaiting -->
+        <!-- ✅ Table -->
+        <div class="card-body p-0">
+            <table class="table table-striped">
+                <thead><tr>
+                    <th>#</th><th>Name</th><th>Email</th><th>Department</th><th>Role</th> <th>Status</th> <th class="text-end">Actions</th>
+                </tr></thead>
 
-                                    <!-- Start - Complete -->
-                                    <div class="col-xl-2 col-sm-4 col-6 border-end">
-                                        <div class="d-flex align-items-center">
-                                            <h2 class="text-success my-0 fs-3 me-2">21</h2>
-                                            <span class="text-dark fw-medium fs-5">Complete</span>
-                                        </div>
-                                        <span>Tasks assigne</span>
-                                    </div>
-                                    <!-- End - Complete -->
+                <tbody>
+                    <tr v-for="(u, index) in props.users.data" :key="u.id">
+                        <td>{{ props.users.from + index }}</td>
+                        <td>{{ u.name }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.department?.name ?? '-' }}</td>
+                        <td>{{ u.roles?.map(r=>r.name).join(', ') ?? '-'  }}</td>
+                            <!-- ✅ Status Toggle -->
+                            <td>
+                                <span 
+                                    class="badge"
+                                    :class="u.status === 'active' ? 'bg-success' : 'bg-danger'"
+                                    style="cursor: pointer"
+                                    @click="toggleStatus(u.id)"
+                                >
+                                    {{ u.status === 'active' ? 'Active' : 'Inactive' }}
+                                </span>
+                            </td>
 
-                                    <!-- Start - Pending -->
-                                    <div class="col-xl-2 col-sm-4 col-6">
-                                        <div class="d-flex align-items-center">
-                                            <h2 class="text-danger my-0 fs-3 me-2">16</h2>
-                                            <span class="text-dark fw-medium fs-5">Pending</span>
-                                        </div>
-                                        <span>Tasks assigne</span>
-                                    </div>
-                                    <!-- End - Pending -->
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-primary me-1" @click="editUser(u.id)">Edit</button>
+                            <button class="btn btn-sm btn-danger" @click="deleteUser(u.id)">Delete</button>
+                        </td>
+                    </tr>
+                    <tr v-if="!props.users.data.length">
+                        <td colspan="6" class="text-center p-2">No users found</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <!-- ✅ Pagination -->
+        <div class="card-footer d-flex justify-content-between align-items-center">
 
-            <!-- ✅ User Table -->
-            <div class="col-xl-12">
-                <div class="card">
+            <div>Showing {{ props.users.from }}–{{ props.users.to }} of {{ props.users.total }}</div>
 
-                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
-                        <h4 class="card-title">Users List</h4>
-
-                        <!-- Add New User -->
-                        <button class="btn btn-primary btn-sm" @click="createUser">
-                            + Add User
-                        </button>
-                    </div>
-
-                    <div class="card-body table-card-body px-0 pt-0 pb-1">
-                        <div class="table-responsive check-wrapper">
-                            <table class="table table-sm table-bottom-borderless">
-                                <thead class="table-primary text-nowrap">
-                                    <tr>
-                                        <th>S.No</th>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Created</th>
-                                        <th class="text-end">Action</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody class="text-nowrap">
-
-                                    <!-- ✅ Loop Users -->
-                                    <tr v-for="(user, index) in users" :key="user.id">
-                                        <td>{{ index + 1 }}</td>
-                                        <td>
-                                            <h6 class="mb-0">{{ user.name }}</h6>
-                                        </td>
-                                        <td>{{ user.email }}</td>
-                                        <td>{{ new Date(user.created_at).toLocaleDateString() }}</td>
-
-                                        <td class="text-end">
-
-                                            <!-- Edit -->
-                                            <button
-                                                class="btn btn-sm btn-primary me-1"
-                                                @click="editUser(user.id)"
-                                            >
-                                                Edit
-                                            </button>
-
-                                            <!-- Delete -->
-                                            <button
-                                                class="btn btn-sm btn-danger"
-                                                @click="deleteUser(user.id)"
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-
-                                    <tr v-if="users.length === 0">
-                                        <td colspan="5" class="text-center py-3">
-                                            No users found.
-                                        </td>
-                                    </tr>
-
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
+            <ul class="pagination mb-0">
+              
+                <li class="page-item" v-for="page in props.users.links" :key="page.label"
+                    :class="{ active: page.active, disabled: !page.url }">
+                    <button class="page-link" @click="goPage(page.url)" v-html="page.label"></button>
+                </li>
+          
+            </ul>
 
         </div>
 
     </div>
 
+    <!-- ✅ FORM MODAL -->
+    <UserForm v-if="showForm"
+        :user-id="editingId"
+        :departments="props.departments"
+        :designations="props.designations"
+        :allRoles="props.allRoles"
+        @close="closeForm" />
+
+</div>
 </template>
 
-
 <script setup>
-import { router } from '@inertiajs/vue3'
+import { ref } from "vue"
+import { router } from "@inertiajs/vue3"
+import UserForm from "./Form.vue"
+import AppRoutes from "@/routes"
 import AdminLayout from '@/Layouts/AdminLayout.vue'
-import AppRoutes from "@/routes.js";
-
-
 defineOptions({ layout: AdminLayout })
 
-// ✅ Accept data from controller
 const props = defineProps({
-    users: Array,
-    totalUsers: Number
+  users: Object,
+  filters: Object,
+  departments: Array,
+  designations: Array,
+  allRoles: Array,
+  totalUsers: Number
 })
 
-// ✅ Create user (route for create page)
-const createUser = () => {
-    router.get(AppRoutes.users.create);
+const toggleStatus = (id) => {
+  if (!confirm("Change user status?")) return;
+
+  router.post(AppRoutes.users.toggleStatus(id), {}, {
+    preserveScroll: true
+  });
 };
 
-// ✅ Edit user
-const editUser = (id) => {
-    router.get(AppRoutes.users.edit(id));
-};
+const search = ref(props.filters.search ?? "")
+const filterDepartment = ref(props.filters.department_id ?? "")
+const filterRole = ref(props.filters.role ?? "")
 
-
-// ✅ Delete user
-const deleteUser = (id) => {
-    if (confirm("Are you sure you want to delete this Record?")) {
-         router.delete(AppRoutes.users.delete(id));
-    }
+const applyFilter = () => {
+  router.get(AppRoutes.users.index, {
+    search: search.value,
+    department_id: filterDepartment.value,
+    role: filterRole.value
+  }, { preserveState: true, replace: true })
 }
+
+const goPage = (url) => {
+  if (!url) return
+  router.get(url, {}, { preserveState: true })
+}
+
+const showForm = ref(false)
+const editingId = ref(null)
+
+const createUser = () => { editingId.value=null; showForm.value=true }
+const editUser = (id) => { editingId.value=id; showForm.value=true }
+
+const deleteUser = (id) => {
+  if (confirm("Delete user?")) router.delete(AppRoutes.users.delete(id))
+}
+
+const closeForm = () => { showForm.value=false; editingId.value=null }
 </script>

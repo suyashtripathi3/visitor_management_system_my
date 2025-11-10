@@ -1,128 +1,112 @@
 <template>
-  <div class="page-title">
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        <li><h1>{{ isEdit ? 'Edit Role' : 'Add Role' }}</h1></li>
-        <li class="breadcrumb-item">
-          <a :href="route('dashboard')">Home</a>
-        </li>
-        <li class="breadcrumb-item">
-          <a :href="AppRoutes.roles.index">Roles</a>
-        </li>
-        <li class="breadcrumb-item active">{{ isEdit ? 'Edit' : 'Create' }}</li>
-      </ol>
-    </nav>
-  </div>
-
   <div class="container-fluid">
-    <div class="row">
-      <div class="col-xl-6 mx-auto">
-        <div class="card">
-          <div class="card-header border-0">
-            <h4 class="card-title">{{ isEdit ? 'Edit Role' : 'Create New Role' }}</h4>
+    
+    <!-- Page Header -->
+    <div class="page-title">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li><h1>{{ editId ? "Edit Role" : "Create Role" }}</h1></li>
+          <li class="breadcrumb-item"><a :href="AppRoutes.dashboard">Home</a></li>
+          <li class="breadcrumb-item"><a :href="AppRoutes.roles.index">Roles</a></li>
+          <li class="breadcrumb-item active">{{ editId ? "Edit" : "Create" }}</li>
+        </ol>
+      </nav>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+
+        <form @submit.prevent="save">
+
+          <!-- Role Name -->
+          <div class="mb-3">
+            <label class="form-label fw-bold">Role Name</label>
+            <input v-model="form.name" class="form-control" placeholder="Enter role name">
+            <small class="text-danger" v-if="form.errors.name">{{ form.errors.name }}</small>
           </div>
 
-          <div class="card-body">
-            <!-- show server flash success (if any) -->
-            <div v-if="flash.success" class="alert alert-success">
-              {{ flash.success }}
+          <!-- Search Filter -->
+          <div class="mb-2">
+            <label class="fw-bold">Permissions</label>
+            <input 
+              v-model="search"
+              class="form-control form-control-sm mt-1"
+              placeholder="Search permissions..."
+            >
+          </div>
+
+          <!-- Permissions -->
+          <div class="border rounded p-3" style="max-height:350px; overflow-y:auto;">
+            <div class="row">
+              <div v-for="p in filteredPermissions" :key="p.id" class="col-6 mb-2">
+                <label class="form-check-label">
+                  <input type="checkbox" class="form-check-input me-1"
+                    :value="p.name"
+                    v-model="form.permissions"
+                  >
+                  {{ p.name }}
+                </label>
+              </div>
             </div>
-
-            <form @submit.prevent="submitForm" novalidate>
-              <div class="mb-3">
-                <label class="form-label">Role Name</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  :class="{ 'is-invalid': form.errors.name }"
-                  placeholder="Enter role name"
-                  v-model="form.name"
-                  :disabled="form.processing"
-                />
-                <div v-if="form.errors.name" class="invalid-feedback">
-                  {{ form.errors.name }}
-                </div>
-              </div>
-
-              <div class="text-end">
-                <button type="button" class="btn btn-secondary me-2" @click="goBack" :disabled="form.processing">
-                  Cancel
-                </button>
-                <button type="submit" class="btn btn-primary" :disabled="form.processing">
-                  <span v-if="form.processing" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  {{ form.processing ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Role' : 'Create Role') }}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
+
+          <!-- Error -->
+          <small class="text-danger" v-if="form.errors.permissions">
+            {{ form.errors.permissions }}
+          </small>
+
+          <div class="mt-3 d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-light" @click="cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary">{{ editId ? "Update" : "Save" }}</button>
+          </div>
+
+        </form>
+
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { router, useForm, usePage } from '@inertiajs/vue3'
-import AdminLayout from '@/Layouts/AdminLayout.vue'
-import AppRoutes from "@/routes.js";
-import { computed, watch } from 'vue'
+import { ref, computed } from "vue"
+import { useForm, router } from "@inertiajs/vue3"
+import AppRoutes from "@/routes"
+import AdminLayout from "@/Layouts/AdminLayout.vue"
 
 defineOptions({ layout: AdminLayout })
 
 const props = defineProps({
-  role: {
-    type: Object,
-    default: null
-  }
+  editId: Number || null,
+  role: Object,
+  permissions: Array,
+  rolePermissions: Array
 })
 
-// get flash messages (if backend returns with('success', '...'))
-const page = usePage()
-const flash = computed(() => page.props.value?.flash || {})
-
-// initialize form with role data (if editing) or empty for create
 const form = useForm({
-  name: props.role?.name || ''
+  name: props.role?.name ?? "",
+  permissions: props.rolePermissions ?? []
 })
 
-const isEdit = computed(() => !!props.role)
+const search = ref("")
 
-// If server sends errors or we want to react when role changes from parent, watch:
-watch(() => props.role, (newVal) => {
-  form.reset()
-  form.name = newVal?.name || ''
-})
+const filteredPermissions = computed(() =>
+  props.permissions.filter(p =>
+    p.name.toLowerCase().includes(search.value.toLowerCase())
+  )
+)
 
-// submit handler — uses AppRoutes (string paths)
-const submitForm = () => {
-  // basic client-side guard: don't submit empty name
-  if (!form.name || form.name.trim().length === 0) {
-    form.setError('name', 'Role name is required.')
-    return
-  }
-
-  if (isEdit.value) {
-    // put to /admin-settings/roles/{id}
-    form.put(AppRoutes.roles.update(props.role.id), {
-      preserveState: false,
-      onSuccess: () => {
-        // server usually redirects to index — but ensure we land back on list
-        router.get(AppRoutes.roles.index)
-      }
+const save = () => {
+  if (props.editId) {
+    form.put(AppRoutes.roles.update(props.editId), {
+      onSuccess: () => router.get(AppRoutes.roles.index)
     })
   } else {
-    // post to /admin-settings/roles
     form.post(AppRoutes.roles.store, {
-      preserveState: false,
-      onSuccess: () => {
-        router.get(AppRoutes.roles.index)
-      }
+      onSuccess: () => router.get(AppRoutes.roles.index)
     })
   }
 }
 
-// go back to roles list
-const goBack = () => {
-  router.get(AppRoutes.roles.index)
-}
+const cancel = () => router.get(AppRoutes.roles.index)
 </script>

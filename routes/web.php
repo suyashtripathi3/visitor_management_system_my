@@ -31,34 +31,45 @@ Route::get('/', function () {
     ]);
 });
 
+Route::post('/admin/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])
+    ->name('admin.users.toggleStatus');
 
 
-Route::prefix('admin-settings')->name('admin.')->group(function () {
+
+/** User****/
+
+Route::middleware(['auth'])->prefix('admin-settings')->name('admin.')->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
     Route::get('/users/{id}/edit', [UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
-    /** 🧩 Role Management */
-    Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
-    Route::get('/roles/create', [RoleController::class, 'create'])->name('roles.create');
-    Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
-    Route::get('/roles/{id}/edit', [RoleController::class, 'edit'])->name('roles.edit');
-    Route::put('/roles/{id}', [RoleController::class, 'update'])->name('roles.update');
-    Route::delete('/roles/{id}', [RoleController::class, 'destroy'])->name('roles.destroy');
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
 });
 
-Route::prefix('common-fields')->name('common.')->group(function () {
 
-    Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
-    Route::get('/buildings', [BuildingController::class, 'index'])->name('buildings.index');
-    Route::get('/floors', [FloorController::class, 'index'])->name('floors.index');
-    Route::get('/location-types', [LocationTypeController::class, 'index'])->name('locationTypes.index');
-    Route::get('/locations', [LocationController::class, 'index'])->name('locations.index');
-    Route::get('/depreciations', [DepreciationController::class, 'index'])->name('depreciations.index');
-    Route::get('/condemnations', [CondemnationController::class, 'index'])->name('condemnations.index');
+/**Role****/
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::get('roles/create', [RoleController::class, 'create'])->name('roles.create');
+    Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
+    Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit');
+    Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.delete');
+});
+
+
+
+/**Common Fields***/
+Route::prefix('common-fields')->name('common.')->group(function () {
+    Route::resource('departments', DepartmentController::class)->except(['create', 'show', 'edit']);
+    Route::resource('buildings', BuildingController::class)->except(['create', 'show', 'edit']);
+    Route::resource('floors', FloorController::class)->except(['create', 'show', 'edit']);
+    Route::resource('location-types', LocationTypeController::class)->except(['create', 'show', 'edit']);
+    Route::resource('locations', LocationController::class)->except(['create', 'show', 'edit']);
+    Route::resource('depreciations', DepreciationController::class)->except(['create', 'show', 'edit']);
+    Route::resource('condemnations', CondemnationController::class)->except(['create', 'show', 'edit']);
 });
 
 

@@ -23,6 +23,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'phone_number',
+        'profile_pic',
+        'department_id',
+        'designation_id',
+        'status',
     ];
 
     /**
@@ -35,6 +40,17 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function designation()
+    {
+        return $this->belongsTo(Designation::class);
+    }
+
+ 
     /**
      * Get the attributes that should be cast.
      *

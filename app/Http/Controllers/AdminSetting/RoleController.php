@@ -4,76 +4,74 @@ namespace App\Http\Controllers\AdminSetting;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Role;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
-    // ✅ Show all roles
-    public function index()
+    public function index(Request $request)
     {
-        $roles = Role::select('id', 'name', 'created_at')->latest()->get();
-        $totalRoles = $roles->count();
+        $search = $request->search;
 
-        return inertia('AdminSetting/Roles/Index', compact('roles', 'totalRoles'));
-    }
+        $roles = Role::withCount(['permissions', 'users'])
+            ->when($search, fn($q) => $q->where('name', 'like', "%$search%"))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
-    // ✅ Show create role form
-    public function create()
-    {
-        return inertia('AdminSetting/Roles/Form', [
-            'role' => null
+        return inertia('AdminSetting/Roles/Index', [
+            'roles' => $roles,
+            'filters' => $request->only('search')
         ]);
     }
 
-   // ✅ Store new role
-public function store(Request $request)
+ public function create()
 {
-    $request->validate([
-        'name' => 'required|string|max:255|unique:roles,name',
+    return inertia('AdminSetting/Roles/Form', [
+        'editId' => null,
+        'permissions' => Permission::all()
     ]);
-
-    Role::create([
-        'name' => $request->name,
-        'guard_name' => 'web', // 👈 added line
-    ]);
-
-    return redirect()->route('admin.roles.index')
-        ->with('success', 'Role created successfully');
 }
 
-    // ✅ Show edit form
-    public function edit($id)
+    public function store(Request $request)
     {
-        $role = Role::findOrFail($id);
-
-        return inertia('AdminSetting/Roles/Form', [
-            'role' => $role
-        ]);
-    }
-
-    // ✅ Update role
-    public function update(Request $request, $id)
-    {
-        $role = Role::findOrFail($id);
-
         $request->validate([
-            'name' => "required|string|max:255|unique:roles,name,$id",
+            'name' => 'required|unique:roles,name',
+            'permissions' => 'array'
         ]);
 
-        $role->update([
-            'name' => $request->name,
-        ]);
+        $role = Role::create(['name' => $request->name]);
+        $role->syncPermissions($request->permissions);
 
-        return redirect()->route('admin.roles.index')
-            ->with('success', 'Role updated successfully');
+        return redirect()->route('admin.roles.index')->with('success','Role created');
     }
 
-    // ✅ Delete role
-    public function destroy($id)
-    {
-        Role::findOrFail($id)->delete();
+public function edit(Role $role)
+{
+    return inertia('AdminSetting/Roles/Form', [
+        'editId' => $role->id,
+        'role' => $role,
+        'permissions' => Permission::all(),
+        'rolePermissions' => $role->permissions()->pluck('name')
+    ]);
+}
 
-        return redirect()->back()
-            ->with('success', 'Role deleted successfully');
+    public function update(Request $request, Role $role)
+    {
+        $request->validate([
+            'name' => "required|unique:roles,name,$role->id",
+            'permissions' => 'array'
+        ]);
+
+        $role->update(['name' => $request->name]);
+        $role->syncPermissions($request->permissions);
+
+        return redirect()->route('admin.roles.index')->with('success','Role updated');
+    }
+
+    public function destroy(Role $role)
+    {
+        $role->delete();
+        return back()->with('success','Role deleted');
     }
 }

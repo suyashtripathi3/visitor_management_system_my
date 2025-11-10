@@ -5,76 +5,97 @@ namespace App\Http\Controllers\AdminSetting;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Department;
+use App\Models\Designation;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    //
-
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::select('id', 'name', 'email', 'created_at')->latest()->get();
-        $totalUsers = $users->count();
- 
-        return inertia('AdminSetting/Users/Index', compact('users', 'totalUsers'));
+        $query = User::with(['department','designation','roles'])->select('id','name','email','department_id','designation_id','status');
 
-    }
-
-
-      // ✅ Show create form
-        public function create()
-        {
-            return inertia('AdminSetting/Users/Form', [
-                'user' => null
-            ]);
+        // ✅ Search Filter
+        if ($request->search) {
+            $query->where(function($q) use ($request) {
+                $q->where('name','LIKE',"%{$request->search}%")
+                  ->orWhere('email','LIKE',"%{$request->search}%");
+            });
         }
 
+        // ✅ Department Filter
+        if ($request->department_id) {
+            $query->where('department_id', $request->department_id);
+        }
 
+        // ✅ Role Filter
+        if ($request->role) {
+            $query->whereHas('roles', function($q) use ($request) {
+                $q->where('name', $request->role);
+            });
+        }
 
+        $users = $query->paginate(10)->appends($request->all());
 
-    // ✅ Store new user
+        return inertia('AdminSetting/Users/Index', [
+            'users' => $users,
+            'filters' => $request->only('search','department_id','role'),
+            'departments' => Department::select('id','name')->get(),
+            'designations' => Designation::select('id','name')->get(),
+            'allRoles' => Role::pluck('name'),
+            'totalUsers' => User::count()
+        ]);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|min:6'
+            'name'=>'required',
+            'email'=>'required|email|unique:users,email',
+            'password'=>'required|min:6',
+            'department_id'=>'required',
+            'designation_id'=>'required',
+            'roles'=>'required|array|min:1'
         ]);
 
-        User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password)
+        $user = User::create([
+            'name'=>$request->name,
+            'email'=>$request->email,
+            'password'=>Hash::make($request->password),
+            'department_id'=>$request->department_id,
+            'designation_id'=>$request->designation_id
         ]);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User created successfully');
+        $user->syncRoles($request->roles);
+
+        return back();
     }
 
-        // Show edit form
-        public function edit($id)
-        {
-            $user = User::findOrFail($id);
+    public function edit($id)
+    {
+        $user = User::with('roles')->findOrFail($id);
 
-            return inertia('AdminSetting/Users/Form', [
-                'user' => $user
-            ]);
-        }
+        return response()->json(['data'=>$user]);
+    }
 
-    // ✅ Update user
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
 
         $request->validate([
-            'name'  => 'required|string|max:255',
-            'email' => "required|email|unique:users,email,$id",
-            'password' => 'nullable|min:6'
+            'name'=>'required',
+            'email'=>"required|email|unique:users,email,$id",
+            'department_id'=>'required',
+            'designation_id'=>'required',
+            'roles'=>'required|array|min:1'
         ]);
 
         $data = [
-            'name'  => $request->name,
-            'email' => $request->email,
+            'name'=>$request->name,
+            'email'=>$request->email,
+            'department_id'=>$request->department_id,
+            'designation_id'=>$request->designation_id
         ];
 
         if ($request->password) {
@@ -82,17 +103,24 @@ class UserController extends Controller
         }
 
         $user->update($data);
+        $user->syncRoles($request->roles);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User updated successfully');
+        return back();
     }
 
-    // ✅ Delete user
+
+    public function toggleStatus($id)
+{
+    $user = User::findOrFail($id);
+    $user->status = $user->status === 'active' ? 'inactive' : 'active';
+    $user->save();
+
+    return back()->with('success', 'Status updated');
+}
+
     public function destroy($id)
     {
         User::findOrFail($id)->delete();
-
-        return redirect()->back()
-            ->with('success', 'User deleted successfully');
+        return back();
     }
 }

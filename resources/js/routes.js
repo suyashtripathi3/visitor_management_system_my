@@ -1,6 +1,6 @@
 export default {
 
-    // ✅ Dashboard
+     // ✅ Dashboard
     dashboard: route('dashboard'),
 
     // ✅ Users Module
@@ -11,18 +11,20 @@ export default {
         edit: (id) => route('admin.users.edit', id),
         update: (id) => route('admin.users.update', id),
         delete: (id) => route('admin.users.destroy', id),
+        toggleStatus: (id) => route('admin.users.toggleStatus', id),
     },
 
 
     // ✅ Roles Module
-    roles: {
-        index: '/admin-settings/roles',
-        create: '/admin-settings/roles/create',
-        store: '/admin-settings/roles',
-        edit: (id) => `/admin-settings/roles/${id}/edit`,
-        update: (id) => `/admin-settings/roles/${id}`,
-        delete: (id) => `/admin-settings/roles/${id}`,
-    },
+  roles: {
+    index: route('admin.roles.index'),
+    create: route('admin.roles.create'),
+    store: route('admin.roles.store'),
+    edit: (id) => route('admin.roles.edit', id),
+    update: (id) => route('admin.roles.update', id),
+    delete: (id) => route('admin.roles.delete', id),
+},
+
 
     // ✅ Logs
     logs: {
@@ -30,11 +32,48 @@ export default {
     },
 
     // ✅ Common fields
-    common: {
-        departments: route('common.departments.index'),
-        buildings: route('common.buildings.index'),
-        floors: route('common.floors.index'),
-        locationTypes: route('common.locationTypes.index'),
-        locations: route('common.locations.index'),
+   common: {
+    // Departments CRUD
+    departments: {
+        index: route('common.departments.index'),
+        store: route('common.departments.store'),
+        update: (id) => route('common.departments.update', id),
+        delete: (id) => route('common.departments.destroy', id),
+    },
+
+    // Buildings CRUD
+    buildings: {
+        index: route('common.buildings.index'),
+        store: route('common.buildings.store'),
+        update: (id) => route('common.buildings.update', id),
+        delete: (id) => route('common.buildings.destroy', id),
+    },
+
+    // Floors CRUD
+    floors: {
+        index: route('common.floors.index'),
+        store: route('common.floors.store'),
+        update: (id) => route('common.floors.update', id),
+        delete: (id) => route('common.floors.destroy', id),
+    },
+
+    // Location Types CRUD
+   
+    locationTypes: {
+        index: route('common.location-types.index'),
+        store: route('common.location-types.store'),
+        update: id => route('common.location-types.update', id),
+        delete: id => route('common.location-types.destroy', id),
     }
+,
+
+    // Locations CRUD
+    locations: {
+        index: route('common.locations.index'),
+        store: route('common.locations.store'),
+        update: (id) => route('common.locations.update', id),
+        delete: (id) => route('common.locations.destroy', id),
+    },
+}
+
 };

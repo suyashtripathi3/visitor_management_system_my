@@ -1,101 +1,142 @@
 <template>
-  <!-- Page Title & Breadcrumb -->
-  <div class="page-title">
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        <li><h1>{{ isEdit ? "Edit User" : "Create User" }}</h1></li>
-        <li class="breadcrumb-item">
-          <a :href="route('dashboard')">Home</a>
-        </li>
-        <li class="breadcrumb-item">
-          <a :href="route('admin.users.index')">Users</a>
-        </li>
-        <li class="breadcrumb-item active">
-          {{ isEdit ? "Edit" : "Create" }}
-        </li>
-      </ol>
-    </nav>
-  </div>
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.4)">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
 
-  <div class="container-fluid mt-3">
-
-    <div class="card shadow-sm">
-      <div class="card-header">
-        <h4 class="card-title mb-0">{{ isEdit ? "Update User" : "Add New User" }}</h4>
+      <div class="modal-header">
+        <h5 class="modal-title">{{ isEdit ? "Edit User" : "Add User" }}</h5>
+        <button type="button" class="btn-close" @click="emit('close')"></button>
       </div>
 
-      <div class="card-body">
-
-        <!-- Form -->
-        <form @submit.prevent="submit">
+      <form @submit.prevent="submitForm">
+        <div class="modal-body">
 
           <!-- Name -->
           <div class="mb-3">
-            <label class="form-label fw-semibold">Name</label>
-            <input v-model="form.name" type="text" class="form-control" placeholder="Enter name" required>
+            <label>Name</label>
+            <input v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }">
+            <div class="invalid-feedback" v-if="errors.name">{{ errors.name }}</div>
           </div>
 
           <!-- Email -->
           <div class="mb-3">
-            <label class="form-label fw-semibold">Email</label>
-            <input v-model="form.email" type="email" class="form-control" placeholder="Enter email" required>
+            <label>Email</label>
+            <input v-model="form.email" type="email" class="form-control" :class="{ 'is-invalid': errors.email }">
+            <div class="invalid-feedback" v-if="errors.email">{{ errors.email }}</div>
           </div>
 
-          <!-- Password -->
+          <!-- Password only for Create -->
+          <div class="mb-3" v-if="!isEdit">
+            <label>Password</label>
+            <input v-model="form.password" type="password" class="form-control" :class="{ 'is-invalid': errors.password }">
+            <div class="invalid-feedback" v-if="errors.password">{{ errors.password }}</div>
+          </div>
+
+          <!-- Department -->
           <div class="mb-3">
-            <label class="form-label fw-semibold">Password</label>
-
-            <input 
-              v-model="form.password" 
-              type="password" 
-              class="form-control" 
-              :placeholder="isEdit ? 'Leave blank to keep old password' : 'Enter password'"
-              :required="!isEdit"
-            >
+            <label>Department</label>
+            <select v-model="form.department_id" class="form-select" :class="{ 'is-invalid': errors.department_id }">
+              <option value="">Select Department</option>
+              <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+            </select>
+            <div class="invalid-feedback" v-if="errors.department_id">{{ errors.department_id }}</div>
           </div>
 
-          <!-- Buttons -->
-          <div class="d-flex justify-content-end gap-2 mt-4">
-            <a :href="route('admin.users.index')" class="btn btn-secondary">
-              Cancel
-            </a>
-
-            <button type="submit" class="btn btn-primary">
-              {{ isEdit ? "Update User" : "Create User" }}
-            </button>
+          <!-- Designation -->
+          <div class="mb-3">
+            <label>Designation</label>
+            <select v-model="form.designation_id" class="form-select" :class="{ 'is-invalid': errors.designation_id }">
+              <option value="">Select Designation</option>
+              <option v-for="des in designations" :key="des.id" :value="des.id">{{ des.name }}</option>
+            </select>
+            <div class="invalid-feedback" v-if="errors.designation_id">{{ errors.designation_id }}</div>
           </div>
 
-        </form>
-      </div>
+          <!-- Roles -->
+          <div class="mb-3">
+            <label>Roles</label>
+            <select v-model="form.roles" multiple class="form-select" :class="{ 'is-invalid': errors.roles }">
+              <option v-for="r in allRoles" :key="r" :value="r">{{ r }}</option>
+            </select>
+            <div class="invalid-feedback" v-if="errors.roles">{{ errors.roles }}</div>
+            <small class="text-muted">Hold CTRL to select multiple</small>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" @click="emit('close')" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">{{ isEdit ? "Update" : "Save" }}</button>
+        </div>
+
+      </form>
+
     </div>
   </div>
+</div>
+
+<!-- Backdrop -->
+<div class="modal-backdrop fade show"></div>
 </template>
 
 <script setup>
-import { useForm } from '@inertiajs/vue3'
-import AdminLayout from '@/Layouts/AdminLayout.vue'
-import AppRoutes from "@/routes.js";
+import { ref } from "vue"
+import { useForm } from "@inertiajs/vue3"
+import axios from "axios"
+import AppRoutes from "@/routes"
 
-defineOptions({ layout: AdminLayout })
-
+// Props from Index.vue
 const props = defineProps({
-  user: Object | null
+  userId: Number || null,
+  departments: Array,
+  designations: Array,
+  allRoles: Array
 })
 
-const isEdit = props.user !== null
+const emit = defineEmits(["close"])
+const isEdit = props.userId !== null
 
+// Form
 const form = useForm({
-  name: props.user?.name ?? '',
-  email: props.user?.email ?? '',
-  password: ''
+  name: "",
+  email: "",
+  password: "",
+  department_id: "",
+  designation_id: "",
+  roles: []
 })
 
-const submit = () => {
+const errors = ref({})
 
-    if (isEdit) {
-        form.put(AppRoutes.users.update(props.user.id));
-    } else {
-        form.post(AppRoutes.users.store);
-    }
+// Load user for edit
+if (isEdit) {
+  axios.get(AppRoutes.users.edit(props.userId)).then(res => {
+    const u = res.data.data
+
+    form.name = u.name
+    form.email = u.email
+    form.department_id = u.department_id
+    form.designation_id = u.designation_id
+    form.roles = u.roles ? u.roles.map(r => r.name) : []
+  })
+}
+
+// Submit
+const submitForm = () => {
+  errors.value = {}
+  if (!form.name) errors.value.name = "Name is required"
+  if (!form.email) errors.value.email = "Email is required"
+  if (!isEdit && !form.password) errors.value.password = "Password required"
+  if (!form.department_id) errors.value.department_id = "Required"
+  if (!form.designation_id) errors.value.designation_id = "Required"
+  if (form.roles.length === 0) errors.value.roles = "Select at least one role"
+
+  if (Object.keys(errors.value).length) return
+
+  if (isEdit) {
+    form.put(AppRoutes.users.update(props.userId), { onSuccess: () => emit("close") })
+  } else {
+    form.post(AppRoutes.users.store, { onSuccess: () => emit("close") })
+  }
 }
 </script>

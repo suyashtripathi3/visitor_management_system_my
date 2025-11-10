@@ -1,145 +1,91 @@
 <template>
+<div>
+  <div class="page-title">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li><h1>Roles</h1></li>
+        <li class="breadcrumb-item"><a :href="AppRoutes.dashboard">Home</a></li>
+        <li class="breadcrumb-item active">Roles</li>
+      </ol>
+    </nav>
+  </div>
 
-    <!-- ✅ Page Title -->
-    <div class="page-title">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li><h1>Roles</h1></li>
-                <li class="breadcrumb-item">
-                    <a :href="route('dashboard')">Home</a>
-                </li>
-                <li class="breadcrumb-item active">Roles</li>
-            </ol>
-        </nav>
+  <div class="card">
+    <div class="card-header d-flex gap-2">
+      <input v-model="search" @input="applyFilter"
+        class="form-control form-control-sm"
+        placeholder="Search role..." style="width:200px">
+
+      <button class="btn btn-primary btn-sm ms-auto" @click="goCreate">+ Add Role</button>
     </div>
 
-    <div class="container-fluid">
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Role</th>
+            <th>Permissions</th>
+            <th>Users</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
 
-        <div class="row">
+        <tbody>
+          <tr v-for="(r, i) in roles.data" :key="r.id">
+            <td>{{ roles.from + i }}</td>
+            <td>{{ r.name }}</td>
+            <td><span class="badge bg-info">{{ r.permissions_count }}</span></td>
+            <td><span class="badge bg-success">{{ r.users_count }}</span></td>
 
-            <!-- ✅ Role Summary Cards -->
-            <div class="col-xl-12">
-                <div class="card">
-                    <div class="card-body overflow-hidden">
-                        <div class="row gx-5 gy-3">
+            <td class="text-end">
+              <button class="btn btn-sm btn-primary me-1" @click="goEdit(r.id)">Edit</button>
+              <button class="btn btn-sm btn-danger" @click="destroy(r.id)">Delete</button>
+            </td>
+          </tr>
 
-                            <div class="col-xl-3 col-sm-6 col-6 border-end">
-                                <div class="d-flex align-items-center">
-                                    <h2 class="text-primary my-0 fs-3 me-2">{{ totalRoles }}</h2>
-                                    <span class="text-dark fw-medium fs-5">Total Roles</span>
-                                </div>
-                                <span>Roles available in system</span>
-                            </div>
-
-                            <div class="col-xl-3 col-sm-6 col-6">
-                                <div class="d-flex align-items-center">
-                                    <h2 class="text-success my-0 fs-3 me-2">Active</h2>
-                                    <span class="text-dark fw-medium fs-5">Status</span>
-                                </div>
-                                <span>All roles are active</span>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ✅ Roles Table -->
-            <div class="col-xl-12">
-                <div class="card">
-
-                    <div class="card-header border-0 d-flex justify-content-between align-items-center">
-                        <h4 class="card-title">Roles List</h4>
-
-                        <button class="btn btn-primary btn-sm" @click="createRole">
-                            + Add Role
-                        </button>
-                    </div>
-
-                    <div class="card-body table-card-body px-0 pt-0 pb-1">
-                        <div class="table-responsive check-wrapper">
-                            <table class="table table-sm table-bottom-borderless">
-                                <thead class="table-primary text-nowrap">
-                                    <tr>
-                                        <th>S.No</th>
-                                        <th>Role Name</th>
-                                        <th>Created At</th>
-                                        <th class="text-end">Action</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody class="text-nowrap">
-
-                                    <tr v-for="(role, index) in roles" :key="role.id">
-                                        <td>{{ index + 1 }}</td>
-                                        <td>
-                                            <h6 class="mb-0">{{ role.name }}</h6>
-                                        </td>
-                                        <td>{{ new Date(role.created_at).toLocaleDateString() }}</td>
-
-                                        <td class="text-end">
-                                            <button
-                                                class="btn btn-sm btn-primary me-1"
-                                                @click="editRole(role.id)"
-                                            >
-                                                Edit
-                                            </button>
-
-                                            <button
-                                                class="btn btn-sm btn-danger"
-                                                @click="deleteRole(role.id)"
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-
-                                    <tr v-if="roles.length === 0">
-                                        <td colspan="4" class="text-center py-3">
-                                            No roles found.
-                                        </td>
-                                    </tr>
-
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-        </div>
-
+          <tr v-if="!roles.data.length">
+            <td colspan="5" class="text-center p-3">No roles found</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <div>Showing {{ roles.from }}–{{ roles.to }} of {{ roles.total }}</div>
+      <ul class="pagination mb-0">
+        <li v-for="link in roles.links" :key="link.label"
+            :class="['page-item', { active: link.active }]"
+        >
+          <button class="page-link" @click="go(link.url)" v-html="link.label"></button>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+</div>
 </template>
 
 <script setup>
-import { router } from '@inertiajs/vue3'
+import { ref } from "vue"
+import { router } from "@inertiajs/vue3"
+import AppRoutes from "@/routes"
 import AdminLayout from '@/Layouts/AdminLayout.vue'
-import AppRoutes from "@/routes.js";
-
 defineOptions({ layout: AdminLayout })
 
-const props = defineProps({
-    roles: Array,
-    totalRoles: Number
-})
+const props = defineProps({ roles: Object, filters: Object })
 
-// ✅ Create role
-const createRole = () => {
-    router.get(AppRoutes.roles.create);
-};
+const roles = props.roles
+const search = ref(props.filters?.search ?? "")
 
-// ✅ Edit role
-const editRole = (id) => {
-    router.get(AppRoutes.roles.edit(id));
-};
+const applyFilter = () => router.get(AppRoutes.roles.index, { search: search.value }, { preserveState: true })
+const go = url => url && router.get(url)
+const goCreate = () => router.get(AppRoutes.roles.create)
+const goEdit = id => router.get(AppRoutes.roles.edit(id))
 
-// ✅ Delete role
-const deleteRole = (id) => {
-    if (confirm("Are you sure you want to delete this role?")) {
-        router.delete(AppRoutes.roles.delete(id));
-    }
-};
+const destroy = (id) => {
+  if (confirm("Delete role?")) router.delete(AppRoutes.roles.delete(id), {
+    onSuccess: () => router.get(AppRoutes.roles.index, {}, { replace: true })
+  })
+}
 </script>
