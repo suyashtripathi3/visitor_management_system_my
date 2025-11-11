@@ -16,10 +16,13 @@ return new class extends Migration
             $table->string('company')->nullable();
             $table->text('purpose')->nullable();
             $table->string('badge_no')->unique();
-            $table->timestamp('checked_in_at')->nullable();
+            $table->text('photo')->nullable();
+             $table->timestamp('checked_in_at')->nullable();
             $table->timestamp('checked_out_at')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
+            $table->string('gender')->nullable();
+            $table->json('venues')->nullable();
         });
     }
 

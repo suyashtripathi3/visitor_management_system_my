@@ -57,8 +57,7 @@ class VisitorController extends Controller
      */
     public function create(): Response
     {
-       return Inertia::render('VisitorManagement/Form');
-
+        return Inertia::render('VisitorManagement/Form');
     }
 
     /**
@@ -72,26 +71,42 @@ class VisitorController extends Controller
             'phone' => 'nullable|string|max:50',
             'company' => 'nullable|string|max:191',
             'purpose' => 'nullable|string',
+            'gender' => 'nullable|string|max:20',
+            'venues' => 'nullable', // don't force array, handle manually
             'photo' => 'nullable|image|max:2048',
         ]);
 
-        // 📷 Handle photo upload
-        if ($request->hasFile('photo')) {
-            $data['photo'] = $request->file('photo')->store('visitors', 'public');
+        // 📸 Handle photo upload
+        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
+            $filename = time() . '_' . preg_replace('/\s+/', '_', $request->file('photo')->getClientOriginalName());
+            $request->file('photo')->move(public_path('assets/images/visitor'), $filename);
+            $data['photo'] = 'assets/images/visitor/' . $filename;
         }
 
-        // 🎟️ Auto-generate badge
+
+        // 🏢 Decode venues if sent as JSON
+        if ($request->filled('venues')) {
+            $venues = is_string($request->venues)
+                ? json_decode($request->venues, true)
+                : $request->venues;
+            $data['venues'] = json_encode($venues);
+        }
+
+
+        // 🎟️ Badge + Creator
         $data['badge_no'] = strtoupper(Str::random(6));
         $data['created_by'] = Auth::id();
 
         $visitor = Visitor::create($data);
 
-        // 📧 (Optional) Email sending logic can go here
         return response()->json([
-            'message' => 'Visitor invited successfully.',
+            'message' => 'Visitor invited successfully!',
             'visitor' => $visitor,
         ]);
     }
+
+
+
 
     /**
      * 🔁 Re-invite existing visitor
@@ -130,11 +145,13 @@ class VisitorController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:191',
-            'email' => 'nullable|email|max:191',
+            'email' => 'required|email|max:191',
             'phone' => 'nullable|string|max:50',
             'company' => 'nullable|string|max:191',
             'purpose' => 'nullable|string',
-            'photo' => 'nullable|image|max:2048',
+            'gender' => 'nullable|string|max:20',
+            'venues' => 'nullable',
+            'photo' => 'nullable', // don't force image validation yet
             'badge_no' => [
                 'nullable',
                 'string',
@@ -143,17 +160,50 @@ class VisitorController extends Controller
             ],
         ]);
 
+        // Validate only if user uploaded a new photo
         if ($request->hasFile('photo')) {
-            if ($visitor->photo) Storage::disk('public')->delete($visitor->photo);
-            $data['photo'] = $request->file('photo')->store('visitors', 'public');
+            $request->validate([
+                'photo' => 'image|max:2048',
+            ]);
         }
 
+
+        // 📷 Handle new photo upload
+        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
+            // Delete old file (if exists)
+            if ($visitor->photo) {
+                $path = public_path($visitor->photo);
+                if (file_exists($path)) {
+                    unlink($path);
+                } elseif (Storage::disk('public')->exists($visitor->photo)) {
+                    Storage::disk('public')->delete($visitor->photo);
+                }
+            }
+
+            $filename = time() . '_' . preg_replace('/\s+/', '_', $request->file('photo')->getClientOriginalName());
+            $request->file('photo')->move(public_path('assets/images/visitor'), $filename);
+            $data['photo'] = 'assets/images/visitor/' . $filename;
+        }
+
+        // 🏢 Handle venues (accept JSON or array)
+        if ($request->has('venues')) {
+            $venues = $request->venues;
+            if (is_string($venues)) {
+                $venues = json_decode($venues, true);
+            }
+            $data['venues'] = is_array($venues) ? json_encode($venues) : null;
+        }
+
+        // ✅ Update the visitor
         $visitor->update($data);
 
-        return redirect()
-            ->route('visitor.index')
-            ->with('success', 'Visitor updated successfully.');
+        return response()->json([
+            'message' => 'Visitor updated successfully.',
+            'visitor' => $visitor,
+        ]);
     }
+
+
 
     /**
      * 🗑️ Delete visitor
